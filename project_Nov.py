@@ -49,5 +49,5 @@ def main_fun(): # 功能实现函数
         print("somthing failed,please try it again ")
         main_fun()
 
-# isPalindromeString()
-# main_fun()
+isPalindromeString()
+main_fun()
