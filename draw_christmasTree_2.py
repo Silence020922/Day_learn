@@ -582,6 +582,6 @@ penup()
 seth(0)
 goto(100, -230)
 pendown()
-write("\n!Merry Christmas~", align="right", font=("WenQuanYi Zen Hei", 24, "bold"))
+write("\nMerry Christmas~", align="right", font=("WenQuanYi Zen Hei", 24, "bold"))
 done()
 
