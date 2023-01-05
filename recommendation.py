@@ -194,16 +194,4 @@ def main():
 
 
 main()
-# print(opining(opinion,A,B,0.2,1))
-# print(np.sum(s,axis = 0)) # 按行求和
-# print(np.sum(s,axis=  1)) # 按列求和
 
-
-# opinion = np.array([-0.79394795, -0.10722523 , 0.58926153])
-# sign = np.sign(opinion)
-# lamda = np.array([0 , 1, 1])
-# print(sign)
-# opinion_sign = np.matrix(sign)
-# sign_mat = np.dot(opinion_sign.T, opinion_sign)
-# sign_ar = np.array(sign_mat)
-# print(sign_ar**lamda)
