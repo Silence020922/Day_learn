@@ -8,7 +8,7 @@ def find_mini_path(vvw,n):
     n :点数
     Output
     D :D[i][j]表示点i到点j的最短加权路长
-    P :P[i][j]表示i到j途径的点
+    P :P[i][j]表示i到j途径的点。
     '''
     MAX = float('inf')
     m = len(vvw)
@@ -17,12 +17,14 @@ def find_mini_path(vvw,n):
     for i in range(m):
         v1,v2 = vvw[i][0]-1,vvw[i][1]-1
         D[v1][v2]=vvw[i][2]
-        P[v1][v2] = v1
+        P[v1][v2] = v1+1 # 这里方便将元素与点对应起来
     for k in range(n):
         for i in range(n):
-            if i != k:
-                for j in range(n):
-                    if D[i][k] + D[k][j] < D[i][j]:
-                        D[i][j] =  D[i][k] + D[k][j]
-                        P[i][j] = P[k][j]
-    return D,P+1
+            for j in range(n):
+                if D[i][k] + D[k][j] < D[i][j]:
+                    D[i][j] =  D[i][k] + D[k][j]
+                    P[i][j] = P[k][j]
+    return D,P
+
+D,P = find_mini_path(vvw,n)
+print(P)
