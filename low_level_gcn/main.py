@@ -61,10 +61,10 @@ for _ in range(FLAGS.repeat_num): # 做重复实验
         val_loss, val_acc = model((features, val_label, val_mask, support),training = False)
         epoch_loss.append(val_loss)
 
-        # Early stop
-        if epoch > FLAGS.early_stopping and epoch_loss[-1] > np.mean(epoch_loss[-(FLAGS.early_stopping+1):-1]): 
-            print("Early stopping..., epoch: {}".format(epoch))
-            break
+        # # Early stop
+        # if epoch > FLAGS.early_stopping and epoch_loss[-1] > np.mean(epoch_loss[-(FLAGS.early_stopping+1):-1]): 
+        #     print("Early stopping..., epoch: {}".format(epoch))
+        #     break
     test_loss,test_acc = model((features,test_label,test_mask,support),training = False)
     test_loss_list.append(test_loss)
     test_acc_list.append(test_acc)
