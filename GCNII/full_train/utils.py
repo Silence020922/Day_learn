@@ -107,7 +107,7 @@ def mask(dataset_str,id):
     return train_mask,val_mask,test_mask
 
 def load_new_data(dataset_str): # 主要是要返回adj(sparse array) features(sparse lil) 以及 labels( numpy.ndarray)
-    G = nx.Graph()
+    G = nx.DiGraph()
     # new_data 数据中不存在孤立点，考虑常规处理方法
     with open('new_data/{}/out1_graph_edges.txt'.format(dataset_str)) as adj_list:
         adj_list.readline()
@@ -130,7 +130,6 @@ def load_new_data(dataset_str): # 主要是要返回adj(sparse array) features(s
             features.append(tmp)
     features = sp.lil_array(features,dtype=float)
     labels = np.array(labels)
-    return adj,features,labels
     
 def load_data_full(dataset_str):
     if dataset_str in ['cora','citeseer','pubmed']:
