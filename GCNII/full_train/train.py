@@ -26,10 +26,10 @@ parser.add_argument('--dataset',type=str,default='cora',help='cora, citeseer, pu
 args = parser.parse_args()
 
 
-random.seed(args.seed)
-np.random.seed(args.seed)
-torch.manual_seed(args.seed)
-torch.cuda.manual_seed(args.seed)
+# random.seed(args.seed)
+# np.random.seed(args.seed)
+# torch.manual_seed(args.seed)
+# torch.cuda.manual_seed(args.seed)
 
 checkpt_file = "pretrained/" + uuid.uuid4().hex + ".pt"  # uuid4 基于随机数
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,7 +80,7 @@ def main(dataset_str,idx):
         labels_num = labels.shape[1]
         labels = preprocess_labels(labels)
     else:
-        labels_num = labels.shape[0]
+        labels_num = len(np.unique(labels)) # 第二次修改
         labels = torch.tensor(labels)
     if args.model == 'GCNII':
         model = GCNII(features.shape[1],labels_num,args.nlayer,args.hidden_size,args.alpha,args.lamda,args.dropout,args.variant,args.residual).to(device)
@@ -94,7 +94,7 @@ def main(dataset_str,idx):
     lr=args.lr,
 )  # learning rate
     features = preprocess_features(features)
-    adj = preprocess_adj(adj)
+    adj = preprocess_adj(adj).transpose(0,1)
     adj = adj.to(device)
     features = features.to(device)
     best_loss = float('inf')
@@ -104,10 +104,10 @@ def main(dataset_str,idx):
     for i in range(args.epochs):
         loss_train,acc_train = train(model,optimizer,adj,features,labels,idx_train)
         loss_val, acc_val = val(model,features,labels,adj,idx_val)
-        if (i+1) % 10 == 0:
-            print('Epoch.:{:04d}, train loss.:{:.3f}, train acc.:{:.3f}, val loss.:{:.3f}, val acc.:{:.3f}'.format(
-                i+1,loss_train,acc_train,loss_val,acc_val
-            )) 
+        # if (i+1) % 10 == 0:
+        #     print('Epoch.:{:04d}, train loss.:{:.3f}, train acc.:{:.3f}, val loss.:{:.3f}, val acc.:{:.3f}'.format(
+        #         i+1,loss_train,acc_train,loss_val,acc_val
+        #     )) 
         if loss_val < best_loss:
             best_loss = loss_val
             best_acc = acc_val
@@ -128,9 +128,14 @@ acc_list = list()
 start_time = time.time()
 for i in range(10):
     acc_list.append(main(args.dataset,i))
+acc_mean = np.array(acc_list).mean()
+acc_list.append(acc_mean)
+print("Train cost: {:.4f}s".format(time.time() - start_time))  
+print('Test_acc(mean).:{}'.format(acc_mean))
+np.save('result/{}*_full.npy'.format(args.dataset),np.array(acc_list))
 
-print('total time.:{:.2f}'.format(time.time()-start_time))
-print('Test' if args.test else 'Val',"acc(mean).:{:.3f}".format(np.array(acc_list).mean()))
+# print('total time.:{:.2f}'.format(time.time()-start_time))
+# print('Test' if args.test else 'Val',"acc(mean).:{:.3f}".format(np.array(acc_list).mean()))
 
 
 

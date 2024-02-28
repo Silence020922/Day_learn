@@ -4,7 +4,7 @@ import scipy.sparse as sp
 import sys
 import networkx as nx
 import torch
-
+import os
 # copy from gcn
 def parse_index_file(filename):
     f = open(filename)
@@ -65,6 +65,7 @@ def sparse_to_torch_tensor(sparse_mx):
 # feature 预处理
 def preprocess_features(features):
     rowsum = np.array(features.sum(1))
+    rowsum = (rowsum==0)*1+rowsum # if rowsum[i] == 0: rowsum[i] = 1
     r_inv = np.power(rowsum, -1).flatten()  # 次方
     r_inv[np.isinf(r_inv)] = 0.0
     r_mat_inv = sp.diags(r_inv)
@@ -73,7 +74,9 @@ def preprocess_features(features):
 
 def normalize_adj(adj):
     adj = sp.coo_matrix(adj)
+    adj = adj + sp.eye(adj.shape[0])
     rowsum = np.array(adj.sum(1))
+    rowsum=(rowsum==0)*1+rowsum
     d_inv_sqrt = np.power(rowsum, -0.5).flatten()
     d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.0
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
@@ -81,7 +84,7 @@ def normalize_adj(adj):
 
 # adj 预处理
 def preprocess_adj(adj):
-    adj_normalized = normalize_adj(adj + sp.eye(adj.shape[0]))
+    adj_normalized = normalize_adj(adj)
     return sparse_to_torch_tensor(adj_normalized)
 
 def preprocess_labels(labels):
@@ -95,6 +98,8 @@ def acc(output,labels):
     T = predict.eq(labels)
     acc = T.sum().item()/total * 100
     return acc
+
+
 
 def mask(dataset_str,id):
     with np.load('splits/{}_split_0.6_0.2_{}.npz'.format(dataset_str,id)) as data:
@@ -118,7 +123,7 @@ def load_new_data(dataset_str): # 主要是要返回adj(sparse array) features(s
             elif int (str_list[1]) not in G:
                 G.add_node(int(str_list[1]))
             G.add_edge(int(str_list[0]),int(str_list[1]))
-    adj = nx.adjacency_matrix(G,np.sort(G.nodes()))
+    adj = nx.adjacency_matrix(G,sorted(G.nodes()))
     labels = list()
     features = list()
     with open('new_data/{}/out1_node_feature_label.txt'.format(dataset_str)) as node_feature_label :
@@ -130,6 +135,7 @@ def load_new_data(dataset_str): # 主要是要返回adj(sparse array) features(s
             features.append(tmp)
     features = sp.lil_array(features,dtype=float)
     labels = np.array(labels)
+    return adj,features,labels
     
 def load_data_full(dataset_str):
     if dataset_str in ['cora','citeseer','pubmed']:

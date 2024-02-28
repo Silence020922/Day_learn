@@ -36,6 +36,7 @@ class GraphConvolution(nn.Module):
             output = 0.5*output + 0.5*input
         return output
 
+
 class GraphConvolution2(nn.Module):
     def __init__(self, in_features, out_features):
         super(GraphConvolution2, self).__init__() 

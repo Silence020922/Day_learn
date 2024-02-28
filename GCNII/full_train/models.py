@@ -35,6 +35,7 @@ class GCNII(nn.Module):
         return output
 
 
+
 class APPNP(nn.Module):
     # 全连接 卷积层 全连接
     def __init__(self,input_dim,label_class_num,layer_num,hidden_size,alpha,dropout):

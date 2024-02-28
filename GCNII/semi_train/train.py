@@ -90,36 +90,45 @@ def test():
 # 训练且保存最佳模型
 adj = adj.to(device)
 features = features.to(device)
-best_loss = float('inf')
-best_acc = 0
-best_epoch = 0
-tolerance = 0
 start_time = time.time()
-for i in range(args.epochs):
-    loss_train,acc_train = train()
-    loss_val, acc_val = val()
-    if (i+1) % 10 == 0:
-        print('Epoch.:{:04d}, train loss.:{:.3f}, train acc.:{:.3f}, val loss.:{:.3f}, val acc.:{:.3f}'.format(
-            i+1,loss_train,acc_train,loss_val,acc_val
-        )) 
-    if loss_val < best_loss:
-        best_loss = loss_val
-        best_acc = acc_val
-        best_epoch = i
-        torch.save(model.state_dict(),checkpt_file)
-        tolerance = 0
-    else:
-        tolerance += 1
+acc_list = list()
+for j in range(100):
+    print('----------{}%----------'.format(j+1))
+    best_loss = float('inf')
+    best_acc = 0
+    best_epoch = 0
+    tolerance = 0
+    for i in range(args.epochs):
+        loss_train,acc_train = train()
+        loss_val, acc_val = val()
+        # if (i+1) % 10 == 0:
+        #     print('Epoch.:{:04d}, train loss.:{:.3f}, train acc.:{:.3f}, val loss.:{:.3f}, val acc.:{:.3f}'.format(
+        #         i+1,loss_train,acc_train,loss_val,acc_val
+        #     )) 
+        if loss_val < best_loss:
+            best_loss = loss_val
+            best_acc = acc_val
+            best_epoch = i
+            torch.save(model.state_dict(),checkpt_file)
+            tolerance = 0
+        else:
+            tolerance += 1
 
-    if tolerance == args.patience: break
-    accuracy = best_acc
+        if tolerance == args.patience: break
+        accuracy = best_acc
 
-if args.test:
-    test_loss,test_acc = test()
-    accuracy = test_acc
-print('Model {} , loading epoch {:04d}...'.format(args.model,best_epoch))
-print('best loss.:{:.3f}, acc.:{:.3f},total time.:{:.2f}'.format(best_loss,best_acc,time.time()-start_time))
-print('Test' if args.test else 'Val',"acc.:{:.3f}".format(accuracy))
+    if args.test:
+        test_loss,test_acc = test()
+        accuracy = test_acc
+    acc_list.append(accuracy)
+acc_mean = np.array(acc_list).mean()
+acc_list.append(acc_mean)
+np.save('result/{}*_semi.npy'.format(args.dataset),np.array(acc_list))
+print("Train cost: {:.4f}s".format(time.time() - start_time))  
+print('Test_acc(mean).:{}'.format(acc_mean))
+# print('Model {} , loading epoch {:04d}...'.format(args.model,best_epoch))
+# print('best loss.:{:.3f},best acc.:{:.3f},total time.:{:.2f}'.format(best_loss,best_acc,time.time()-start_time))
+# print('Test' if args.test else 'Val',"acc.:{:.3f}".format(accuracy))
 
 
 
