@@ -7,32 +7,57 @@
     typedef float real;
 #endif
 
-__global__ void reduce_gpu(real *d_x, real *d_y){ // 由于每个线程块都会返回一个值，需要存储到数组内
+const int iElemCount = 1e8;                     // 设置元素数量
+const unsigned blocksize = 128;
+const unsigned gridsize = 10240;
+__device__ real static_y[gridsize];
+
+__global__ void reduce_gpu(const real *d_x, real *d_y, const int N){ // 由于每个线程块都会返回一个值，需要存储到数组内
     const int tid = threadIdx.x;
-    const unsigned full_mask = 0xffffffff;
-    real *x = d_x + blockDim.x * blockIdx.x; // 使得不同线程块中指向不同位置的全局内存地址
+    const int bid = blockIdx.x;
+    extern __shared__ real s_y[];
+
+    real y = 0.0;
+    const int stride = blockDim.x*gridDim.x; // 间隔
+    for (int n = bid*blockDim.x+tid; n<N;n+=stride){
+        y += d_x[n]; 
+    }
+
+    s_y[tid] = y; // 将每个线程中寄存器存储的y存放到共享内存中
+    __syncthreads();
 
     for (int offset = blockDim.x >> 1;offset >= 32;offset >>= 1){ // 使用位操作，相当于 offset /= 2
         if (tid < offset){
-            x[tid] += x[tid + offset];
+            s_y[tid] += s_y[tid + offset];
         }
         __syncthreads(); // 块内同步
     }
 
-    real y = x[tid]; //每个线程在寄存器上存储一个y
+    y = s_y[tid]; //每个线程在寄存器上存储一个y
 
-    for (int offset = 16 ;offset > 0;offset >>= 1){ // 使用位操作，相当于 offset /= 2
-        // if (tid < offset){ // tid tid+offset属于同一个线程束中 改用更细粒度的线程束同步 加速程序执行
-        //     x[tid] += x[tid + offset];
-        // }
-        // __syncwarp(); // 线程束同步
-        y += __shfl_down_sync(full_mask,y,offset);
+    thread_block_tile<32> g = tiled_partition<32>(this_thread_block());
+
+    for (int i = g.size()>>1 ;i > 0;i >>= 1){ 
+        y += g.shfl_down(y,i);
     }
 
     if (tid == 0){
-        // atomicAdd(&d_y[0],x[0]);//d_y[blockIdx.x] = x[0]; 该为调用原子函数，在GPU内完成对各线程块结果的加和
-        atomicAdd(d_y,y);
+        d_y[bid] = y;
     }
+}
+real reduce(const real *d_x){
+    real *d_y;
+    ErrorCheck(cudaGetSymbolAddress((void **)&d_y,static_y),__FILE__,__LINE__); // 将d_y 与 静态全局变量联系起来
+    const int smem = sizeof(real) * blocksize;
+
+    real h_y[1] = {0};
+
+    reduce_gpu<<<gridsize,blocksize,smem>>>(d_x,d_y,iElemCount);
+    reduce_gpu<<<1,1024,sizeof(real)*1024>>>(d_y,d_y,gridsize);
+
+    ErrorCheck(cudaMemcpy(h_y,d_y,sizeof(real),cudaMemcpyDeviceToHost),__FILE__,__LINE__);
+
+    return h_y[0];
 }
 
 
@@ -45,20 +70,18 @@ void initialData(real *addr, int const elemCount)
     return;
 }
 
+
 int main(){
 
     SetGPU();
     // 1、分配主机内存，并初始化
-    int iElemCount = 1e8;                     // 设置元素数量
-    int blocksize = 128;
-    int gridsize = (iElemCount-1)/blocksize + 1;
+
     size_t stBytesCount = iElemCount * sizeof(real); // 字节数
     
     real *H_x;
     H_x = (real *)malloc(stBytesCount); // 分配动态内存
-    real H_y[1] = {0}; // 栈内存，由于仅存单个数据
 
-    if (H_x != NULL && H_y != NULL)
+    if (H_x != NULL)
     {
         memset(H_x, 0, stBytesCount);  // 主机内存初始化为0
     }
@@ -67,35 +90,31 @@ int main(){
         printf("Fail to allocate host memory!\n");
         exit(-1);
     }
-    real *D_x, *D_y;
+
+
+    real *D_x;
     ErrorCheck(cudaMalloc((real**)&D_x, stBytesCount), __FILE__, __LINE__);
-    ErrorCheck(cudaMalloc((real**)&D_y, sizeof(real)), __FILE__, __LINE__);
-    if (D_x != NULL && D_y != NULL){
+    if (D_x != NULL){
     ErrorCheck(cudaMemset(D_x, 0, stBytesCount), __FILE__, __LINE__); // 设备内存初始化为0
-    ErrorCheck(cudaMemset(D_y, 0, sizeof(real)), __FILE__, __LINE__);
     }
     else{
         printf("fail to allocate memory\n");
         free(H_x); // 释放先前CPU中制定的内存
         exit(-1);
     }
-
-    // 2、初始化主机中数据
+    // 初始化主机数据并copy到设备内存
     initialData(H_x, iElemCount);
-    // 主机复制到设备
     ErrorCheck(cudaMemcpy(D_x,H_x,stBytesCount,cudaMemcpyHostToDevice),__FILE__,__LINE__);
-    ErrorCheck(cudaMemcpy(D_y,H_y,sizeof(real),cudaMemcpyHostToDevice),__FILE__,__LINE__);
-    // 3 调用归约函数并记时
+    // 启动记时函数
     cudaEvent_t start, stop; 
     ErrorCheck(cudaEventCreate(&start), __FILE__, __LINE__);
     ErrorCheck(cudaEventCreate(&stop), __FILE__, __LINE__);
     ErrorCheck(cudaEventRecord(start), __FILE__, __LINE__);
     cudaEventQuery(start);
 
-    reduce_gpu<<<gridsize,blocksize>>>(D_x,D_y);
+    real ans = reduce(D_x);
     // 将计算结果传回到主机
-    ErrorCheck(cudaMemcpy(H_y, D_y, sizeof(real), cudaMemcpyDeviceToHost),__FILE__,__LINE__);
-    
+
     ErrorCheck(cudaEventRecord(stop), __FILE__, __LINE__);
     ErrorCheck(cudaEventSynchronize(stop), __FILE__, __LINE__);
     float elapsed_time;
@@ -104,11 +123,10 @@ int main(){
 
     // 释放主机与设备内存
     // 4 打印结果
-    printf("Sum: %.6f\t\n",H_y[0]);
+    printf("Sum: %.6f\t\n",ans);
     // 释放主机内存，结束程序
     free(H_x);
     ErrorCheck(cudaFree(D_x), __FILE__, __LINE__);
-    ErrorCheck(cudaFree(D_y), __FILE__, __LINE__);
     ErrorCheck(cudaDeviceReset(), __FILE__, __LINE__);
 
     return 0;

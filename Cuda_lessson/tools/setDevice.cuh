@@ -1,5 +1,7 @@
 #include <stdio.h> // 头文件
 # include "cudaError.cuh"
+# include <cooperative_groups.h>
+using namespace cooperative_groups;
 
 int SetGPU(){
     int iDeviceCount=0;

@@ -9,7 +9,6 @@
 
 __global__ void reduce_gpu(real *d_x, real *d_y){ // 由于每个线程块都会返回一个值，需要存储到数组内
     const int tid = threadIdx.x;
-    const unsigned full_mask = 0xffffffff;
     real *x = d_x + blockDim.x * blockIdx.x; // 使得不同线程块中指向不同位置的全局内存地址
 
     for (int offset = blockDim.x >> 1;offset >= 32;offset >>= 1){ // 使用位操作，相当于 offset /= 2
@@ -21,16 +20,13 @@ __global__ void reduce_gpu(real *d_x, real *d_y){ // 由于每个线程块都会
 
     real y = x[tid]; //每个线程在寄存器上存储一个y
 
+    thread_block_tile<32> g = tiled_partition<32>(this_thread_block());
+
     for (int offset = 16 ;offset > 0;offset >>= 1){ // 使用位操作，相当于 offset /= 2
-        // if (tid < offset){ // tid tid+offset属于同一个线程束中 改用更细粒度的线程束同步 加速程序执行
-        //     x[tid] += x[tid + offset];
-        // }
-        // __syncwarp(); // 线程束同步
-        y += __shfl_down_sync(full_mask,y,offset);
+        y += g.shfl_down(y,offset);
     }
 
     if (tid == 0){
-        // atomicAdd(&d_y[0],x[0]);//d_y[blockIdx.x] = x[0]; 该为调用原子函数，在GPU内完成对各线程块结果的加和
         atomicAdd(d_y,y);
     }
 }
