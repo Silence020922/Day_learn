@@ -11,12 +11,11 @@ fn main() {
         times = times + 1;
         println!("times:{}/chance:{}. Input your guess",times,chance_num);
         match times.cmp(&chance_num) {
-            Ordering::Less => {},
             Ordering::Greater => {
                 println!("You loss!");
                 break;
             },
-            Ordering::Equal => {},
+            _ => (),
         }
         let mut guess = String::new(); // let创建变量 mut标志变量可变 new创建类型实例
         io::stdin() //调用io库包中的stdin()
