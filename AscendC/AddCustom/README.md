@@ -3,7 +3,7 @@
 
 - 仅适配单核情况 
 
-- 不支持广播操作
+- ~~不支持广播操作~~ 更新支持 1—8 维广播操作
 
 <table>
 <tr><td rowspan="1" align="center">算子类型(OpType)</td><td colspan="4" align="center">Add</td></tr>
