@@ -1,5 +1,5 @@
 ## 算子原型
-- 仅支持fp16数据类型
+- ~~仅支持fp16数据类型~~ 更新支持fp16, fp32, int16, int32数据类型
 
 - 仅适配单核情况 
 
@@ -18,4 +18,3 @@
 <tr><td rowspan="1" align="center">核函数名</td><td colspan="4" align="center">add_custom</td></tr>
 </table>
 
-![](./Insight.png)
